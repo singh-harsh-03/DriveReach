@@ -20,6 +20,9 @@ const Home = () => {
 
           {/* Buttons */}
           <div className="mt-6 flex flex-col md:flex-row gap-4">
+          <Link to="/login" className="bg-blue-500 text-white px-6 py-3 rounded text-lg font-medium hover:bg-blue-700">
+              Login
+            </Link>
             <Link to="/signup" className="bg-blue-500 text-white px-6 py-3 rounded text-lg font-medium hover:bg-blue-700">
               Sign Up
             </Link>
