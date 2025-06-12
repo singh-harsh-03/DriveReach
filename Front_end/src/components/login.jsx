@@ -5,13 +5,38 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault(); // Prevents the page from refreshing
-    console.log("Login Details:");
-    console.log("Email:", email);
-    console.log("Password:", password);
-    console.log("Role:", role);
+  
+    const payload = {
+      email,
+      password,
+      role,
+    };
+  
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const data = await res.json();
+  
+      if (res.ok) {
+        console.log("Login successful:", data);
+        // Example: store token if needed
+        // localStorage.setItem("token", data.token);
+      } else {
+        console.log("Login error:", data.message);
+      }
+    } catch (error) {
+      console.log("Login failed:", error.message);
+    }
   };
+  
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-100">

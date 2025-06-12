@@ -5,6 +5,7 @@ const cors = require('cors');
 const driverRoutes = require('./routes/driverRoutes');
 const carOwnerRoutes = require('./routes/carOwnerRoutes');
 const userRoutes = require('./routes/userRoutes');
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = 5000;
@@ -24,6 +25,7 @@ mongoose.connect('mongodb+srv://vivekvivjnv1:VivekWinjitFinalPro@cluster0.svl6m7
 app.use('/api/driver', driverRoutes);
 app.use('/api/carowner', carOwnerRoutes);
 app.use('/api/user', userRoutes);
+app.use("/api/auth", authRoutes);
 
 //  Start Server
 app.listen(PORT, () => {
