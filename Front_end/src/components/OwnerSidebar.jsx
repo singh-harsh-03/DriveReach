@@ -66,33 +66,24 @@ const OwnerSidebar = () => {
           <div className="grid grid-cols-3 gap-3 text-center mb-4">
             <div
               className="bg-gray-100 p-2 rounded-lg cursor-pointer"
-              onClick={() => navigate("/owner/listings")}
-            >
+              onClick={() => navigate("/owner/listings")}>
               <FaCar className="mx-auto text-gray-700" />
               <p className="text-xs mt-1">My Cars</p>
             </div>
             <div
               className="bg-gray-100 p-2 rounded-lg cursor-pointer"
-              onClick={() => navigate("/owner/history")}
-            >
+              onClick={() => navigate("/owner/history")}>
               <FaHistory className="mx-auto text-gray-700" />
               <p className="text-xs mt-1">History</p>
             </div>
+            <div
+              className="bg-gray-100 p-2 rounded-lg cursor-pointer"
+              onClick={() => navigate("/owner/profile")}>
+              <FaHistory className="mx-auto text-gray-700" />
+              <p className="text-xs mt-1">Edit Profile</p>
+            </div>
           </div>
 
-          <button
-            onClick={() => navigate("/owner/profile")}
-            className="w-full text-sm text-left py-2 border-t pt-2 text-gray-700 hover:underline"
-          >
-            ⚙️ Edit Profile
-          </button>
-
-          <button
-            onClick={() => navigate("/owner/listings")}
-            className="w-full text-sm text-left py-2 text-gray-700 hover:underline"
-          >
-            🚗 Car Listings
-          </button>
 
           <button
             className="w-full text-sm text-left py-2 text-red-600 hover:underline font-semibold"
