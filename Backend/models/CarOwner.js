@@ -9,6 +9,7 @@ const carOwnerSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Email is required'],
     unique: true,
+    lowercase: true,
     match: [/\S+@\S+\.\S+/, 'Email is invalid']
   },
   password: {
@@ -21,7 +22,7 @@ const carOwnerSchema = new mongoose.Schema({
     required: [true, 'Mobile number is required'],
     match: [/^\d{10}$/, 'Mobile number must be 10 digits']
   },
-  carNo: {
+  carNumber: {
     type: String,
     required: [true, 'Car number is required']
   },

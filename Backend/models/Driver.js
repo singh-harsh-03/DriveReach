@@ -9,6 +9,7 @@ const driverSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Email is required'],
     unique: true,
+    lowercase: true,
     match: [/\S+@\S+\.\S+/, 'Email is invalid']
   },
   password: {
@@ -24,6 +25,20 @@ const driverSchema = new mongoose.Schema({
   licenseNo: {
     type: String,
     required: [true, 'Driving License Number is required']
+  },
+  aadharNumber: {
+    type: String,
+    required: [true, 'Aadhar Number is required'],
+    match: [/^\d{12}$/, 'Aadhar number must be 12 digits']
+  },
+  experience: {
+    type: Number,
+    required: [true, 'Driving experience (in years) is required'],
+    min: [0, 'Experience cannot be negative']
+  },
+  address: {
+    type: String,
+    required: [true, 'Address is required']
   }
 }, { timestamps: true });
 

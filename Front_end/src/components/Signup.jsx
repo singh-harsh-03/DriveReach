@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 const Signup = () => {
@@ -18,6 +17,7 @@ const Signup = () => {
     dlFile: null,
   });
 
+  // ✅ Corrected handleChange function
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     setFormData({
@@ -26,31 +26,65 @@ const Signup = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     const payload = {
       name: formData.name,
       email: formData.email,
       password: formData.password,
-      phone: formData.phone,
+      mobile: formData.phone,
       address: formData.address,
       role,
     };
-
+  
     if (role === "owner") {
-      payload.carModel = formData.carModel;
       payload.carNumber = formData.carNumber;
     } else if (role === "driver") {
       payload.aadharNumber = formData.aadharNumber;
-      payload.dlNumber = formData.dlNumber;
+      payload.licenseNo = formData.dlNumber;
       payload.experience = formData.experience;
-      payload.dlFile = formData.dlFile;
+      // dlFile skipped
     }
-
-    console.log("Payload to send:", payload);
-    //call api for backend 
+  
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const data = await res.json();
+  
+      if (res.ok) {
+        console.log("Signup successful:", data.message);
+  
+        // ✅ Clear form after successful submission
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          phone: "",
+          address: "",
+          carModel: "",
+          carNumber: "",
+          aadharNumber: "",
+          dlNumber: "",
+          experience: "",
+          dlFile: null,
+        });
+  
+        setRole("owner"); // Optional: reset role too
+      } else {
+        console.log("Signup error:", data.message);
+      }
+    } catch (error) {
+      console.log("Signup failed:", error.message);
+    }
   };
+  
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
@@ -58,11 +92,11 @@ const Signup = () => {
         <h2 className="text-3xl font-bold text-gray-800 mb-4">Sign Up</h2>
         <form className="space-y-3" onSubmit={handleSubmit}>
           {/* Common Fields */}
-          <input className="border p-2 w-full" type="text" name="name" placeholder="Full Name" onChange={handleChange} />
-          <input className="border p-2 w-full" type="email" name="email" placeholder="Email" onChange={handleChange} />
-          <input className="border p-2 w-full" type="password" name="password" placeholder="Password" onChange={handleChange} />
-          <input className="border p-2 w-full" type="text" name="phone" placeholder="Phone Number" onChange={handleChange} />
-          <input className="border p-2 w-full" type="text" name="address" placeholder="Address" onChange={handleChange} />
+          <input className="border p-2 w-full" type="text" name="name" placeholder="Full Name" onChange={handleChange} required />
+          <input className="border p-2 w-full" type="email" name="email" placeholder="Email" onChange={handleChange} required />
+          <input className="border p-2 w-full" type="password" name="password" placeholder="Password" onChange={handleChange} required />
+          <input className="border p-2 w-full" type="text" name="phone" placeholder="Phone Number" onChange={handleChange} required />
+          <input className="border p-2 w-full" type="text" name="address" placeholder="Address" onChange={handleChange} required />
 
           {/* Role Selection */}
           <select className="border p-2 w-full" value={role} onChange={(e) => setRole(e.target.value)}>
