@@ -1,8 +1,12 @@
+import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import MapComponent from "./MapComponent";
 import ProfileDropdown from "./DriverProfileDropdown";
 
+
 const DriverDashboard = () => {
+  const navigate = useNavigate();
+
   return (
     <div>
       <Navbar />
@@ -10,7 +14,7 @@ const DriverDashboard = () => {
       {/* ✅ Profile Icon Positioned in top-right */}
       <div className="relative">
         <div className="absolute top-6 right-6 z-50">
-          <ProfileDropdown />
+          <ProfileDropdown navigate={navigate} />
         </div>
 
         <div className="container mx-auto p-6 mt-20">

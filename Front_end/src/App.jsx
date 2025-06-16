@@ -11,6 +11,11 @@ import CarListings from "./components/Slidebar/CarListings";
 import RideHistory from "./components/Slidebar/RideHistory";
 import RideReceipt from "./components/Slidebar/RideReceipt"; 
 
+import DriverProfile from "./components/DriverPages/DriverProfile";
+import DriverEarnings from "./components/DriverPages/DriverEarnings";
+import DriverHistory from "./components/DriverPages/DriverHistory";
+
+
 function App() {
   return (
     <Router>
@@ -27,6 +32,11 @@ function App() {
         <Route path="/owner/listings" element={<CarListings />} />
         <Route path="/owner/history" element={<RideHistory />} />
         <Route path="/owner/history/:rideId" element={<RideReceipt />} />
+
+         {/* Driver Functional Pages */}
+         <Route path="/driver/profile" element={<DriverProfile />} />
+        <Route path="/driver/earnings" element={<DriverEarnings />} />
+        <Route path="/driver/history" element={<DriverHistory />} />
 
       </Routes>
     </Router>
