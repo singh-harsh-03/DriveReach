@@ -1,12 +1,13 @@
 import { useState } from "react";
 
+
 const Login = () => {
   const [role, setRole] = useState("owner");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevents the page from refreshing
+    e.preventDefault();
   
     const payload = {
       email,
@@ -27,8 +28,24 @@ const Login = () => {
   
       if (res.ok) {
         console.log("Login successful:", data);
-        // Example: store token if needed
-        // localStorage.setItem("token", data.token);
+  
+        // Save to localStorage
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+  
+        // Redirect based on role
+        
+        
+
+        // Then inside your function:
+        if (data.user.role === "owner") {
+          console.log("go to owner");
+          window.location.href = "/owner";
+        } else if (data.user.role === "driver") {
+          console.log("go to driver");
+          window.location.href = "/driver";
+        }
+
       } else {
         console.log("Login error:", data.message);
       }
@@ -36,6 +53,7 @@ const Login = () => {
       console.log("Login failed:", error.message);
     }
   };
+  
   
 
   return (

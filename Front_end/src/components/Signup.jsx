@@ -60,6 +60,8 @@ const Signup = () => {
   
       if (res.ok) {
         console.log("Signup successful:", data.message);
+        //store data in local db
+        window.location.href = "/login";
   
         // ✅ Clear form after successful submission
         setFormData({

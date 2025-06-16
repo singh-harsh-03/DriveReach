@@ -39,7 +39,11 @@ const driverSchema = new mongoose.Schema({
   address: {
     type: String,
     required: [true, 'Address is required']
-  }
+  },
+  role: {
+    type: String,
+    required: [true, 'role is required']
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Driver', driverSchema);
