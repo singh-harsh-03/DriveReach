@@ -117,19 +117,6 @@ const OwnerProfile = () => {
               placeholder="City, State"
             />
           </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Company Name (Optional)
-            </label>
-            <input
-              name="company"
-              value={ownerDetails.company}
-              onChange={handleInputChange}
-              className="w-full p-3 border border-gray-300 rounded-md"
-              placeholder="Business or Fleet Name"
-            />
-          </div>
         </div>
       </div>
 
