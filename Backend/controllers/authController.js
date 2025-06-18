@@ -19,7 +19,7 @@ exports.signup = async (req, res) => {
     aadharNumber,
     experience,
     // CarOwner-specific
-    carNumber,
+    // carNumber,
   } = req.body;
 
   try {
@@ -43,6 +43,7 @@ exports.signup = async (req, res) => {
         licenseNo,
         aadharNumber,
         experience,
+        role,
       });
       await newDriver.save();
       return res.status(201).json({ message: "Driver registered successfully" });
@@ -55,7 +56,7 @@ exports.signup = async (req, res) => {
         password: hashedPassword,
         mobile,
         address,
-        carNumber,
+        role,
       });
       await newOwner.save();
       return res.status(201).json({ message: "Car Owner registered successfully" });
@@ -86,17 +87,20 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: user._id, role: role }, JWT_SECRET, { expiresIn: "1d" });
 
     res.json({
-      message: "Login successful",
-      token,
-      user: {
-        name: user.name,
-        email: user.email,
-        role: role
-      }
+    message: "Login successful",
+    token,
+    user: {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: role
+    }
     });
+
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error during login" });

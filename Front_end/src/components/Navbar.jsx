@@ -1,12 +1,34 @@
+// import { Link } from "react-router-dom";
+
+// const Navbar = () => {
+//   return (
+//     <nav className="bg-blue-600 p-4 flex justify-between items-center text-white w-full fixed top-0 shadow-md">
+//       <h1 className="text-2xl font-bold">DriveReach</h1>
+//     </nav>
+//   );
+// };
+
+// export default Navbar;
+
 import { Link } from "react-router-dom";
 
 const Navbar = () => {
   return (
-    <nav className="bg-blue-600 p-4 flex justify-between items-center text-white w-full fixed top-0 shadow-md">
-      <h1 className="text-2xl font-bold">DriveReach</h1>
-      <div className="flex gap-4">
-        <Link className="hover:underline" to="/owner">Owner</Link>
-        <Link className="hover:underline" to="/driver">Driver</Link>
+    <nav className="bg-white shadow-md py-4 px-6 flex justify-between items-center">
+      <Link
+        to="/"
+        className="text-2xl font-bold text-blue-600 hover:text-blue-800 transition duration-300"
+      >
+        DriveReach
+      </Link>
+
+      <div className="space-x-6 hidden md:flex">
+        <Link to="/#about" className="text-gray-700 hover:text-blue-600 font-medium">
+          About
+        </Link>
+        <Link to="/#contact" className="text-gray-700 hover:text-blue-600 font-medium">
+          Contact
+        </Link>
       </div>
     </nav>
   );
