@@ -6,7 +6,6 @@ const driverRoutes = require('./routes/driverRoutes');
 const carOwnerRoutes = require('./routes/carOwnerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require("./routes/authRoutes");
-const rideRequestRoutes = require("./routes/rideRequest");
 const app = express();
 const PORT = 5000;
 
@@ -26,7 +25,6 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/carowner', carOwnerRoutes);
 app.use('/api/user', userRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/ride-requests", rideRequestRoutes);
 
 
 //  Start Server
