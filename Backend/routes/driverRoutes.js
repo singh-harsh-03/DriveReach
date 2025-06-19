@@ -1,6 +1,7 @@
 const express = require('express');
 const Driver = require('../models/Driver');
 const router = express.Router();
+const auth = require('../middleware/auth');
 
 // Create Driver
 router.post('/', async (req, res) => {
@@ -56,6 +57,17 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Driver deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete driver' });
+  }
+});
+
+// Get all available drivers
+router.get('/available', auth, async (req, res) => {
+  try {
+    const drivers = await Driver.find({ isAvailable: true })
+      .select('name rating experience location'); // Only send necessary fields
+    res.json(drivers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

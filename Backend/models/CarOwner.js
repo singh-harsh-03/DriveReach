@@ -22,10 +22,6 @@ const carOwnerSchema = new mongoose.Schema({
     required: [true, 'Mobile number is required'],
     match: [/^\d{10}$/, 'Mobile number must be 10 digits']
   },
-  // carNumber: {
-  //   type: String,
-  //   required: [true, 'Car number is required']
-  // },
   address: {
     type: String,
     required: [true, 'Address is required']

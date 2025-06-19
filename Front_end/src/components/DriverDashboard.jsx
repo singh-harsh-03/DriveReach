@@ -1,12 +1,82 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 import Navbar from "./Navbar";
 import MapComponent from "./MapComponent";
 import ProfileDropdown from "./DriverProfileDropdown";
 import Footer from "./Footer"; // ✅ Import Footer (adjust path if needed)
 
-
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const [bookingRequests, setBookingRequests] = useState([]);
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    // Initialize socket connection
+    const newSocket = io("http://localhost:5000");
+    setSocket(newSocket);
+
+    // Join driver's room for notifications
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user) {
+      newSocket.emit("join", user.id);
+    }
+
+    // Listen for new booking requests
+    newSocket.on("newNotification", (notification) => {
+      if (notification.type === "booking_request") {
+        setBookingRequests(prev => [notification, ...prev]);
+      }
+    });
+
+    // Fetch existing booking requests
+    fetchBookingRequests();
+
+    return () => newSocket.disconnect();
+  }, []);
+
+  const fetchBookingRequests = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/notifications", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBookingRequests(data.filter(n => n.type === "booking_request" && n.bookingDetails.status === "pending"));
+      }
+    } catch (error) {
+      console.error("Error fetching booking requests:", error);
+    }
+  };
+
+  const handleBookingResponse = async (notificationId, status) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/notifications/booking-response", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          notificationId,
+          status
+        })
+      });
+
+      if (response.ok) {
+        // Remove the request from the list
+        setBookingRequests(prev => 
+          prev.filter(request => request._id !== notificationId)
+        );
+        alert(`Booking request ${status} successfully!`);
+      }
+    } catch (error) {
+      console.error("Error responding to booking:", error);
+      alert("Failed to respond to booking request");
+    }
+  };
 
   return (
     <div>
@@ -20,29 +90,55 @@ const DriverDashboard = () => {
 
         <div className="container mx-auto p-6 mt-20">
           <h2 className="text-3xl font-bold mb-4">Driver Dashboard</h2>
+           {/* Google Maps Component */}
+           <MapComponent />
+          {/* Booking Requests Section */}
+          {bookingRequests.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-2xl font-semibold mb-4">New Booking Requests</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {bookingRequests.map((request) => (
+                  <div key={request._id} className="border p-4 shadow-md rounded-lg bg-white">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-xl font-bold">{request.message}</h4>
+                      <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
+                        Pending
+                      </span>
+                    </div>
+                    
+                    <div className="mt-3 space-y-2">
+                      <p className="text-gray-600">
+                        Start Date: {new Date(request.bookingDetails.startDate).toLocaleDateString()}
+                      </p>
+                      <p className="text-gray-600">
+                        Duration: {request.bookingDetails.numberOfDays} days
+                      </p>
+                      {request.bookingDetails.message && (
+                        <p className="text-gray-600 italic">
+                          "{request.bookingDetails.message}"
+                        </p>
+                      )}
+                    </div>
 
-          {/* Google Maps Component */}
-          <MapComponent />
-
-          {/* Ride Requests */}
-          <h3 className="text-2xl font-semibold">New Ride Requests</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-            {[1, 2, 3].map((ride) => (
-              <div key={ride} className="border p-4 shadow-md">
-                <h4 className="text-xl font-bold">Ride {ride}</h4>
-                <p>📍 Pickup: XYZ Location</p>
-                <p>💰 Fare: ₹300</p>
-                <div className="mt-3">
-                  <button className="bg-green-500 text-white px-4 py-2 rounded mr-2">
-                    Accept
-                  </button>
-                  <button className="bg-red-500 text-white px-4 py-2 rounded">
-                    Reject
-                  </button>
-                </div>
+                    <div className="mt-4 flex gap-3">
+                      <button
+                        onClick={() => handleBookingResponse(request._id, "accepted")}
+                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex-1"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleBookingResponse(request._id, "rejected")}
+                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex-1"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
 
           {/* Earnings Section */}
           <h3 className="text-2xl font-semibold mt-8">Earnings</h3>

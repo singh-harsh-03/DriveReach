@@ -1,5 +1,6 @@
 const express = require('express');
 const CarOwner = require('../models/CarOwner');
+const Driver = require('../models/Driver');
 const router = express.Router();
 
 // Create Car Owner
@@ -7,19 +8,28 @@ router.post('/', async (req, res) => {
   try {
     const carOwner = new CarOwner(req.body);
     await carOwner.save();
-    res.status(201).json(carOwner);
+    return res.status(201).json(carOwner);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: error.message });
   }
 });
 
 // Get All Car Owners
-router.get('/', async (req, res) => {
+router.get('/profile', async (req, res) => {
   try {
     const owners = await CarOwner.find();
     res.json(owners);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch car owners' });
+  }
+});
+
+router.get('/drivers', async (req, res) => {
+  try {
+    const drivers = await Driver.find();
+    return res.json(drivers);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch drivers' });
   }
 });
 
