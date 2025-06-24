@@ -9,6 +9,8 @@ const carOwnerRoutes = require('./routes/carOwnerRoutes');
 // const userRoutes = require('./routes/userRoutes');
 const authRoutes = require("./routes/authRoutes");
 const notificationRoutes = require('./routes/notificationRoutes');
+const paymentRoutes = require("./routes/payment");
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,6 +43,7 @@ app.use('/api/carowner', carOwnerRoutes);
 // app.use('/api/user', userRoutes);
 app.use("/api/auth", authRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

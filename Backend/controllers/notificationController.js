@@ -22,7 +22,9 @@ exports.getUserNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
       recipient: req.user._id
-    }).sort({ createdAt: -1 });
+    })
+    .sort({ createdAt: -1 }) // Sort by creation date, newest first
+    .limit(5); // Only return the 5 most recent notifications
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -55,6 +57,7 @@ exports.handleBookingResponse = async (req, res) => {
 
     // Update notification status
     notification.bookingDetails.status = status;
+    notification.read = true; // Mark as read when responded to
     await notification.save();
 
     // Create response notification for car owner
