@@ -17,22 +17,7 @@ const BookingSystem = ({ driver, onClose, onSubmit }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Calculate total cost (example calculation)
-    const totalCost = bookingDetails.numberOfDays * 500; // Assuming ₹500 per day
-    
-    // Confirm booking with cost details
-    const confirmed = window.confirm(
-      `Booking Summary:\n\n` +
-      `Driver: ${driver.name}\n` +
-      `Start Date: ${bookingDetails.startDate}\n` +
-      `Number of Days: ${bookingDetails.numberOfDays}\n` +
-      `Estimated Cost: ₹${totalCost}\n\n` +
-      `Would you like to proceed with the booking?`
-    );
-
-    if (confirmed) {
-      onSubmit(bookingDetails);
-    }
+    onSubmit(bookingDetails);
   };
 
   // Get today's date for min date in date picker
@@ -125,8 +110,7 @@ const BookingSystem = ({ driver, onClose, onSubmit }) => {
               type="submit"
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex-1 flex items-center justify-center"
             >
-              <span className="mr-2">🚗</span>
-              Confirm Booking
+              Continue to Confirmation
             </button>
             <button
               type="button"
