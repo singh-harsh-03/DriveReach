@@ -106,4 +106,39 @@ router.get('/available', auth, async (req, res) => {
   }
 });
 
+// Get nearby drivers within 5km radius
+router.get('/nearby/:latitude/:longitude', auth, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.params;
+    
+    // Convert latitude and longitude to numbers
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
+    // Find drivers within 5km radius
+    // 5km = 5000m = 5/6371 radians (Earth's radius ≈ 6371km)
+    const drivers = await Driver.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lon, lat] // MongoDB uses [longitude, latitude] order
+          },
+          $maxDistance: 5000 // 5km in meters
+        }
+      }
+    }).select('name location experience');
+
+    res.json(drivers);
+  } catch (error) {
+    console.error('Error finding nearby drivers:', error);
+    res.status(500).json({ error: 'Failed to fetch nearby drivers' });
+  }
+});
+
 module.exports = router;

@@ -17,7 +17,7 @@ const BookingSystem = ({ driver, onClose, onSubmit }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(bookingDetails);
+      onSubmit(bookingDetails);
   };
 
   // Get today's date for min date in date picker

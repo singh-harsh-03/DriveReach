@@ -20,6 +20,7 @@ const OwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [ownerLocation, setOwnerLocation] = useState(null);
 
   useEffect(() => {
     // Load Razorpay script
@@ -48,8 +49,8 @@ const OwnerDashboard = () => {
       });
     });
 
-    // Fetch drivers and notifications
-    fetchDrivers();
+    // Get owner's location and fetch nearby drivers
+    getCurrentLocation();
     fetchNotifications();
 
     return () => {
@@ -57,6 +58,30 @@ const OwnerDashboard = () => {
       document.body.removeChild(script);
     };
   }, []);
+
+  // Get current location using browser's geolocation API
+  const getCurrentLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setOwnerLocation({ latitude, longitude });
+          // Fetch drivers once we have the location
+          fetchDrivers(latitude, longitude);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          toast.error("Could not get your location. Please enable location services.");
+          // Fetch all drivers if we can't get location
+          fetchDrivers();
+        }
+      );
+    } else {
+      toast.error("Geolocation is not supported by your browser");
+      // Fetch all drivers if geolocation is not supported
+      fetchDrivers();
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -79,11 +104,17 @@ const OwnerDashboard = () => {
     }
   };
 
-  const fetchDrivers = async () => {
+  const fetchDrivers = async (latitude = null, longitude = null) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/carowner/drivers", {
+      
+      // Use the nearby drivers endpoint if we have location
+      const url = latitude && longitude
+        ? `http://localhost:5000/api/driver/nearby/${latitude}/${longitude}`
+        : "http://localhost:5000/api/carowner/drivers";
+
+      const response = await fetch(url, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -94,7 +125,28 @@ const OwnerDashboard = () => {
       }
 
       const data = await response.json();
-      setDrivers(data);
+      
+      // Add distance information to each driver if we have owner's location
+      const driversWithDistance = data.map(driver => {
+        if (latitude && longitude && driver.location?.coordinates) {
+          const [driverLong, driverLat] = driver.location.coordinates;
+          const distance = calculateDistance(
+            latitude,
+            longitude,
+            driverLat,
+            driverLong
+          );
+          return { ...driver, distance };
+        }
+        return driver;
+      });
+
+      // Sort by distance if available
+      const sortedDrivers = driversWithDistance.sort((a, b) => 
+        (a.distance || 0) - (b.distance || 0)
+      );
+
+      setDrivers(sortedDrivers);
       setError(null);
     } catch (err) {
       console.error("Error fetching drivers:", err);
@@ -102,6 +154,23 @@ const OwnerDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in kilometers
+  };
+
+  const toRad = (value) => {
+    return (value * Math.PI) / 180;
   };
 
   const handleBookNow = (driver) => {
@@ -329,39 +398,35 @@ const OwnerDashboard = () => {
               </div>
             ) : (
               drivers.map((driver) => (
-                <div key={driver._id} className="border rounded-lg p-6 shadow-md bg-white hover:shadow-lg transition-shadow">
-                  <div className="flex items-center mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-xl">👤</span>
+                <div
+                  key={driver._id}
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h4 className="text-xl font-semibold">{driver.name}</h4>
+                      <p className="text-gray-600">Experience: {driver.experience} years</p>
+                      {driver.distance !== undefined && (
+                        <p className="text-green-600 font-medium">
+                          Distance: {driver.distance.toFixed(1)} km away
+                        </p>
+                      )}
                     </div>
-                    <div className="ml-4">
-                      <h4 className="text-xl font-bold">{driver.name}</h4>
-                      <p className="text-gray-600">{driver.experience} Years Experience</p>
+                    <div className="flex flex-col items-end">
+                      <span className="inline-block px-3 py-1 text-sm font-semibold text-green-800 bg-green-100 rounded-full">
+                        Available
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="space-y-2 mb-4">
-                    <p className="flex items-center text-gray-600">
-                      <span className="mr-2">📱</span>
-                      {driver.mobile}
-                    </p>
-                    <p className="flex items-center text-gray-600">
-                      <span className="mr-2">📍</span>
-                      {driver.address}
-                    </p>
-                    <p className="flex items-center text-gray-600">
-                      <span className="mr-2">🚗</span>
-                      License: {driver.licenseNo}
-                    </p>
-                  </div>
-
+                  <div className="mt-4">
                   <button
-                    className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
                     onClick={() => handleBookNow(driver)}
+                      className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors duration-200"
                   >
-                    <span className="mr-2">🚗</span>
                     Book Now
                   </button>
+                  </div>
                 </div>
               ))
             )}
@@ -380,11 +445,14 @@ const OwnerDashboard = () => {
       <Footer />
 
       {/* Booking Modal */}
-      {showBookingModal && (
+      {showBookingModal && selectedDriver && (
         <BookingSystem
-          onClose={() => setShowBookingModal(false)}
-          onSubmit={handleBookingSubmit}
           driver={selectedDriver}
+          onClose={() => {
+            setShowBookingModal(false);
+            setSelectedDriver(null);
+          }}
+          onSubmit={handleBookingSubmit}
         />
       )}
     </div>

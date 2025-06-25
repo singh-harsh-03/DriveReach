@@ -85,10 +85,10 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
       });
 
       if (response.ok) {
-        setNotifications(notifications.map(n => 
+    setNotifications(notifications.map(n => 
           n._id === notificationId ? { ...n, read: true } : n
-        ));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+    ));
+    setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -242,7 +242,7 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
         <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[80vh] overflow-y-auto z-50">
           <div className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Notifications</h3>
+            <h3 className="text-lg font-semibold">Notifications</h3>
               <span className="text-xs text-gray-500">Showing 5 most recent</span>
             </div>
             {notifications.length === 0 ? (
@@ -258,10 +258,10 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
                     }`}
                   >
                     {renderNotificationContent(notification)}
-                  </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          )}
           </div>
         </div>
       )}

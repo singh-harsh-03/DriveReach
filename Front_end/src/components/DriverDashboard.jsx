@@ -80,8 +80,8 @@ const DriverDashboard = () => {
         <div className="container mx-auto p-6 mt-20">
           <h2 className="text-3xl font-bold mb-4">Driver Dashboard</h2>
           
-          {/* Google Maps Component */}
-          <MapComponent />
+           {/* Google Maps Component */}
+           <MapComponent />
 
           {/* Earnings Section */}
           <h3 className="text-2xl font-semibold mt-8">Earnings</h3>
@@ -97,7 +97,7 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
-      <Footer />
+        <Footer />
     </div>
   );
 };

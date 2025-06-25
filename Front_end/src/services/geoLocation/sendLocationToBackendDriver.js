@@ -1,24 +1,20 @@
 // src/services/geophancing/sendLocationToBackend.js
 
-let locationAlreadySent = false;
-
-export const sendLocationToBackend = async (userId,role) => {
-  if (locationAlreadySent) return;
-
+export const sendLocationToBackend = async (userId, role) => {
   if (!('geolocation' in navigator)) {
     console.error("Geolocation is not supported by this browser.");
     return;
   }
+
   let link = "";
-
-if (role === "driver")
+  if (role === "driver") {
   link = `http://localhost:5000/api/driver/${userId}/location`;
-else
+  } else {
   link = `http://localhost:5000/api/carowner/${userId}/location`;
+  }
 
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
+  // Function to send a single location update
+  const updateLocation = async (position) => {
       const { latitude, longitude } = position.coords;
 
       try {
@@ -36,14 +32,16 @@ else
           }),
         });
 
-        await response.json();
-        locationAlreadySent = true;
-        
-        console.log("Location sent successfully.");
+      const data = await response.json();
+      console.log("Location updated successfully:", data);
       } catch (error) {
         console.error("Error sending location to backend:", error);
       }
-    },
+  };
+
+  // Watch position and continuously update
+  const watchId = navigator.geolocation.watchPosition(
+    updateLocation,
     (error) => {
       console.error("Error getting device location:", error.message);
     },
@@ -53,4 +51,15 @@ else
       maximumAge: 0,
     }
   );
+
+  // Return the watch ID so it can be cleared when needed
+  return watchId;
+};
+
+// Function to stop sending location updates
+export const stopLocationUpdates = (watchId) => {
+  if (watchId) {
+    navigator.geolocation.clearWatch(watchId);
+    console.log("Location updates stopped");
+  }
 };
