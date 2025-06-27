@@ -33,7 +33,7 @@ export const sendLocationToBackend = async (userId, role) => {
         });
 
       const data = await response.json();
-      console.log("Location updated successfully:", data);
+      //console.log("Location updated successfully:", data);
       } catch (error) {
         console.error("Error sending location to backend:", error);
       }

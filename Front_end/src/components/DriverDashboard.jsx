@@ -3,24 +3,77 @@ import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import Navbar from "./Navbar";
 import MapComponent from "./MapComponent";
+import { gunLocationService } from '../services/geoLocation/gunLocationService';
 import ProfileDropdown from "./DriverProfileDropdown";
 import Notifications from "./Notifications";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Footer from "./Footer"; // ✅ Import Footer (adjust path if needed)
+import Footer from "./Footer";
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
+
+  // Function to update driver's online/offline status
+  const updateDriverStatus = async (driverId, online) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/driver/${driverId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          currentStatus: online ? 'online' : 'offline'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      setIsOnline(online);
+      // Show status update toast
+      toast.success(`You are now ${online ? 'online' : 'offline'}!`, {
+        position: "top-right",
+        autoClose: 3000
+      });
+
+      // Start or stop location tracking based on status
+      if (online) {
+        gunLocationService.startTracking(driverId);
+      } else {
+        gunLocationService.stopTracking();
+      }
+    } catch (error) {
+      console.error('Error updating driver status:', error);
+      toast.error('Failed to update online status');
+    }
+  };
+
+  // Toggle status handler
+  const toggleStatus = () => {
+    if (userId) {
+      updateDriverStatus(userId, !isOnline);
+    }
+  };
 
   useEffect(() => {
+    // Get user data
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user) {
+      setUserId(user.id);
+    }
+
     // Initialize socket connection
     const newSocket = io("http://localhost:5000");
     setSocket(newSocket);
 
     // Join driver's room for notifications
-    const user = JSON.parse(localStorage.getItem("user"));
     if (user) {
       newSocket.emit("join", user.id);
     }
@@ -29,7 +82,6 @@ const DriverDashboard = () => {
     newSocket.on("newNotification", (notification) => {
       if (notification.type === "booking_request") {
         setNotifications(prev => {
-          // Add new notification and keep only 5 most recent
           const updatedNotifications = [notification, ...prev].slice(0, 5);
           return updatedNotifications;
         });
@@ -40,10 +92,23 @@ const DriverDashboard = () => {
       }
     });
 
+    // Subscribe to own location updates
+    if (user) {
+      gunLocationService.subscribeToLocation(user.id, (location) => {
+        setCurrentLocation(location);
+      });
+    }
+
     // Fetch notifications
     fetchNotifications();
 
-    return () => newSocket.disconnect();
+    return () => {
+      newSocket.disconnect();
+      if (user) {
+        gunLocationService.stopTracking();
+        gunLocationService.unsubscribeFromLocation(user.id);
+      }
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -55,7 +120,6 @@ const DriverDashboard = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        // Keep only 5 most recent notifications
         setNotifications(data.slice(0, 5));
       }
     } catch (error) {
@@ -78,10 +142,46 @@ const DriverDashboard = () => {
         </div>
 
         <div className="container mx-auto p-6 mt-20">
-          <h2 className="text-3xl font-bold mb-4">Driver Dashboard</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold">Driver Dashboard</h2>
+            
+            {/* Online/Offline Toggle Button */}
+            <button
+              onClick={toggleStatus}
+              className={`px-6 py-2 rounded-full font-semibold flex items-center gap-2 transition-all duration-300 ${
+                isOnline 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              <span className={`w-3 h-3 rounded-full ${isOnline ? 'bg-white' : 'bg-gray-500'}`}></span>
+              {isOnline ? 'Online' : 'Offline'}
+            </button>
+          </div>
           
-           {/* Google Maps Component */}
-           <MapComponent />
+          {/* Status Banner */}
+          {!isOnline && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    You are currently offline. Go online to receive ride requests.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Map Component with current location */}
+          <MapComponent 
+            userLocation={currentLocation ? [currentLocation.longitude, currentLocation.latitude] : undefined}
+            isDriver={true}
+          />
 
           {/* Earnings Section */}
           <h3 className="text-2xl font-semibold mt-8">Earnings</h3>
@@ -97,7 +197,7 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
-        <Footer />
+      <Footer />
     </div>
   );
 };

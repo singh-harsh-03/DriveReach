@@ -7,8 +7,9 @@ import BookingSystem from "./BookingSystem";
 import Notifications from "./Notifications";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
+import { gunLocationService } from '../services/geoLocation/gunLocationService';
 
 const OwnerDashboard = () => {
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -21,6 +22,9 @@ const OwnerDashboard = () => {
   const [error, setError] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [ownerLocation, setOwnerLocation] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
+  const locationSubscriptionRef = useRef(null);
+  const [bookingStatus, setBookingStatus] = useState(null);
 
   useEffect(() => {
     // Load Razorpay script
@@ -42,11 +46,39 @@ const OwnerDashboard = () => {
     // Listen for booking responses
     newSocket.on("bookingResponse", (data) => {
       const { responseNotification } = data;
-      // Update notifications by keeping only the 5 most recent
       setNotifications(prev => {
         const updatedNotifications = [responseNotification, ...prev].slice(0, 5);
         return updatedNotifications;
       });
+
+      // Handle booking response
+      if (responseNotification.type === "booking_response") {
+        const status = responseNotification.bookingDetails?.status;
+        setBookingStatus(status);
+        
+        if (status === "rejected") {
+          // Only clear selected driver if rejected
+          setSelectedDriver(null);
+          toast.info("Driver has rejected the booking request");
+        } else if (status === "accepted") {
+          // Keep the selected driver and ensure location subscription
+          const driverId = responseNotification.sender;
+          if (driverId && locationSubscriptionRef.current !== driverId) {
+            // Clean up existing subscription if any
+            if (locationSubscriptionRef.current) {
+              gunLocationService.unsubscribeFromLocation(locationSubscriptionRef.current);
+            }
+            
+            // Subscribe to the accepted driver's location
+            locationSubscriptionRef.current = driverId;
+            gunLocationService.subscribeToLocation(driverId, (location) => {
+              console.log('📍 Received driver location update:', location);
+              setDriverLocation([location.longitude, location.latitude]);
+            });
+          }
+          toast.success("Driver has accepted the booking request! Tracking their location.");
+        }
+      }
     });
 
     // Get owner's location and fetch nearby drivers
@@ -59,13 +91,49 @@ const OwnerDashboard = () => {
     };
   }, []);
 
+  // Subscribe to selected driver's location when a driver is selected
+  useEffect(() => {
+    // Only cleanup if there's no active booking
+    if (locationSubscriptionRef.current && bookingStatus !== "accepted") {
+      gunLocationService.unsubscribeFromLocation(locationSubscriptionRef.current);
+      locationSubscriptionRef.current = null;
+    }
+
+    if (selectedDriver && !locationSubscriptionRef.current) {
+      locationSubscriptionRef.current = selectedDriver._id;
+
+      // Subscribe to real-time location updates
+      gunLocationService.subscribeToLocation(selectedDriver._id, (location) => {
+        console.log('📍 Selected driver location update:', location);
+        setDriverLocation([location.longitude, location.latitude]);
+      });
+
+      // Get initial location
+      gunLocationService.getLastLocation(selectedDriver._id).then((location) => {
+        if (location) {
+          setDriverLocation([location.longitude, location.latitude]);
+        }
+      });
+    } else if (!selectedDriver && bookingStatus !== "accepted") {
+      setDriverLocation(null);
+    }
+
+    // Only cleanup on unmount or if booking is rejected
+    return () => {
+      if (locationSubscriptionRef.current && bookingStatus !== "accepted") {
+        gunLocationService.unsubscribeFromLocation(locationSubscriptionRef.current);
+        locationSubscriptionRef.current = null;
+      }
+    };
+  }, [selectedDriver, bookingStatus]);
+
   // Get current location using browser's geolocation API
   const getCurrentLocation = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setOwnerLocation({ latitude, longitude });
+          setOwnerLocation([longitude, latitude]);
           // Fetch drivers once we have the location
           fetchDrivers(latitude, longitude);
         },
@@ -180,8 +248,13 @@ const OwnerDashboard = () => {
 
   const handleBookingSubmit = async (details) => {
     setBookingDetails(details);
+    setShowBookingModal(false);  // Close the booking modal
+    setShowConfirmation(true);   // Show confirmation modal
+  };
+
+  const handleCloseBooking = () => {
+    // Don't unsubscribe or clear selected driver when just closing the form
     setShowBookingModal(false);
-    setShowConfirmation(true);
   };
 
   const handleConfirmBooking = async () => {
@@ -234,7 +307,7 @@ const OwnerDashboard = () => {
       });
 
       setShowConfirmation(false);
-      setSelectedDriver(null);
+      setBookingStatus("pending");
       setBookingDetails(null);
     } catch (error) {
       console.error("Error sending booking request:", error);
@@ -320,20 +393,35 @@ const OwnerDashboard = () => {
       <Navbar />
       <ToastContainer />
 
-      {/* Profile and Notifications Icons */}
       <div className="relative">
         <div className="absolute top-6 right-20 z-50">
           <Notifications userType="owner" notifications={notifications} />
         </div>
         <div className="absolute top-6 right-6 z-50">
-          <OwnerSidebar />
+          <OwnerProfileDropdown />
         </div>
 
         <div className="container mx-auto p-6 mt-20">
-          <h2 className="text-3xl font-bold mb-4">Find a Driver</h2>
+          <h2 className="text-3xl font-bold mb-4">Owner Dashboard</h2>
 
-          {/* Google Maps */}
-          <MapComponent />
+          {/* Single MapComponent that shows both owner and selected driver location */}
+          <MapComponent 
+            userLocation={ownerLocation || [74.7973, 34.0837]}
+            driverLocation={driverLocation}
+            isDriver={false}
+            driverId={selectedDriver?._id}
+            drivers={drivers}
+            onDriverSelect={setSelectedDriver}
+          />
+
+          {/* Booking System */}
+          {showBookingModal && selectedDriver && (
+            <BookingSystem
+              driver={selectedDriver}
+              onSubmit={handleBookingSubmit}
+              onClose={handleCloseBooking}
+            />
+          )}
 
           {/* Confirmation Modal */}
           {showConfirmation && bookingDetails && selectedDriver && (
@@ -443,18 +531,6 @@ const OwnerDashboard = () => {
       
       {/* ✅ Footer at the bottom */}
       <Footer />
-
-      {/* Booking Modal */}
-      {showBookingModal && selectedDriver && (
-        <BookingSystem
-          driver={selectedDriver}
-          onClose={() => {
-            setShowBookingModal(false);
-            setSelectedDriver(null);
-          }}
-          onSubmit={handleBookingSubmit}
-        />
-      )}
     </div>
   );
 };

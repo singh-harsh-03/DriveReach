@@ -141,4 +141,35 @@ router.get('/nearby/:latitude/:longitude', auth, async (req, res) => {
   }
 });
 
+// Update driver status (online/offline)
+router.put('/:id/status', auth, async (req, res) => {
+  try {
+    const { currentStatus } = req.body;
+    const driverId = req.params.id;
+
+    // Verify the driver exists
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    // Update the status
+    driver.currentStatus = currentStatus;
+    await driver.save();
+
+    res.json({ 
+      success: true, 
+      message: `Driver status updated to ${currentStatus}`,
+      driver 
+    });
+  } catch (error) {
+    console.error('Error updating driver status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating driver status',
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;
