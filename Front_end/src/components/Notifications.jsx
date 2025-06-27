@@ -95,7 +95,7 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
     }
   };
 
-  const handleBookingResponse = async (e, notificationId, status) => {
+  const handleBookingResponse = async (e, notificationId, status, sender) => {
     e.stopPropagation(); // Prevent triggering markAsRead
     try {
       const token = localStorage.getItem("token");
@@ -107,7 +107,8 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
         },
         body: JSON.stringify({
           notificationId,
-          status
+          status,
+          sender
         })
       });
 
@@ -175,13 +176,13 @@ const Notifications = ({ userType: propUserType, notifications: propNotification
                 {isNotificationPending(notification) ? (
                   <div className="mt-2 flex gap-2">
                     <button 
-                      onClick={(e) => handleBookingResponse(e, notification._id, "accepted")}
+                      onClick={(e) => handleBookingResponse(e, notification._id, "accepted", notification.sender)}
                       className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
                     >
                       Accept
                     </button>
                     <button 
-                      onClick={(e) => handleBookingResponse(e, notification._id, "rejected")}
+                      onClick={(e) => handleBookingResponse(e, notification._id, "rejected", notification.sender)}
                       className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
                     >
                       Decline

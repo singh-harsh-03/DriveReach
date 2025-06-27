@@ -17,7 +17,12 @@ const DriverDashboard = () => {
   const [userId, setUserId] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
+  const [ownerLocation, setOwnerLocation] = useState(null);
+  const [activeBooking, setActiveBooking] = useState(null);
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [earnings, setEarnings] = useState({ total: 0, completedRides: 0 });
 
+  
   // Function to update driver's online/offline status
   const updateDriverStatus = async (driverId, online) => {
     try {
@@ -62,11 +67,125 @@ const DriverDashboard = () => {
     }
   };
 
+  // Function to handle booking response
+  const handleBookingResponse = async (notificationId, status, ownerId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/notifications/${notificationId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to respond to booking');
+      }
+
+      // Update notifications list
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif._id === notificationId 
+            ? { ...notif, bookingDetails: { ...notif.bookingDetails, status } }
+            : notif
+        )
+      );
+
+      if (status === 'accepted') {
+        setActiveBooking({ ownerId });
+        
+        // Start tracking owner's location
+        const startTrackingOwner = async () => {
+          try {
+            // Unsubscribe from any existing owner location subscription
+            if (activeBooking?.ownerId) {
+              gunLocationService.unsubscribeFromLocation(activeBooking.ownerId);
+            }
+
+            // Subscribe to owner's location updates
+            gunLocationService.subscribeToLocation(ownerId, (location) => {
+              if (location) {
+                console.log('📍 Received owner location update:', location);
+                setOwnerLocation([location.longitude, location.latitude]);
+              }
+            });
+
+            // Get initial owner location
+            const lastLocation = await gunLocationService.getLastLocation(ownerId);
+            if (lastLocation) {
+              console.log('📍 Initial owner location:', lastLocation);
+              setOwnerLocation([lastLocation.longitude, lastLocation.latitude]);
+            } else {
+              console.log('⚠️ No initial owner location available');
+            }
+          } catch (error) {
+            console.error('Error tracking owner location:', error);
+            toast.error('Failed to track owner location');
+          }
+        };
+
+        startTrackingOwner();
+      }
+
+      toast.success(`Booking ${status}!`);
+    } catch (error) {
+      console.error('Error responding to booking:', error);
+      toast.error('Failed to respond to booking');
+    }
+  };
+
+  // Subscribe to own location updates
+  useEffect(() => {
+    if (!userId || !isOnline) return;
+
+    const watchLocation = () => {
+      if (!navigator.geolocation) {
+        toast.error("Geolocation is not supported by your browser");
+        return;
+      }
+
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Format location data consistently
+          setCurrentLocation({
+            latitude,
+            longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now()
+          });
+          console.log('📍 Driver location updated:', { latitude, longitude });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast.error('Failed to get your location. Please enable location services.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+
+      return () => navigator.geolocation.clearWatch(watchId);
+    };
+
+    const cleanup = watchLocation();
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [userId, isOnline]);
+
+  // Initialize socket connection and fetch notifications
   useEffect(() => {
     // Get user data
     const user = JSON.parse(localStorage.getItem("user"));
     if (user) {
       setUserId(user.id);
+      // Fetch profile and earnings data
+      fetchDriverProfile();
+      fetchEarnings();
     }
 
     // Initialize socket connection
@@ -95,7 +214,9 @@ const DriverDashboard = () => {
     // Subscribe to own location updates
     if (user) {
       gunLocationService.subscribeToLocation(user.id, (location) => {
-        setCurrentLocation(location);
+        if (location) {
+          setCurrentLocation(location);
+        }
       });
     }
 
@@ -107,6 +228,10 @@ const DriverDashboard = () => {
       if (user) {
         gunLocationService.stopTracking();
         gunLocationService.unsubscribeFromLocation(user.id);
+      }
+      // Cleanup owner location subscription if exists
+      if (activeBooking?.ownerId) {
+        gunLocationService.unsubscribeFromLocation(activeBooking.ownerId);
       }
     };
   }, []);
@@ -121,45 +246,70 @@ const DriverDashboard = () => {
       if (response.ok) {
         const data = await response.json();
         setNotifications(data.slice(0, 5));
+        
+        // Check for active booking
+        const activeNotification = data.find(n => 
+          n.type === "booking_request" && 
+          n.bookingDetails?.status === "accepted"
+        );
+        
+        if (activeNotification) {
+          const ownerId = activeNotification.sender;
+          setActiveBooking({ ownerId });
+          
+          // Subscribe to owner's location
+          gunLocationService.subscribeToLocation(ownerId, (location) => {
+            if (location) {
+              console.log('📍 Received owner location update:', location);
+              setOwnerLocation([location.longitude, location.latitude]);
+            }
+          });
+
+          // Get initial owner location
+          const lastLocation = await gunLocationService.getLastLocation(ownerId);
+          if (lastLocation) {
+            console.log('📍 Initial owner location:', lastLocation);
+            setOwnerLocation([lastLocation.longitude, lastLocation.latitude]);
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      toast.error("Failed to fetch notifications");
     }
   };
 
   return (
     <div>
       <Navbar />
-      <ToastContainer />
-
-      {/* Profile and Notifications Icons */}
       <div className="relative">
+        {/* Profile and Notifications Icons */}
         <div className="absolute top-6 right-20 z-50">
-          <Notifications userType="driver" notifications={notifications} />
+          <Notifications 
+            notifications={notifications} 
+            userType="driver"
+            onBookingResponse={handleBookingResponse}
+          />
         </div>
         <div className="absolute top-6 right-6 z-50">
-          <ProfileDropdown navigate={navigate} />
+          <ProfileDropdown />
         </div>
 
         <div className="container mx-auto p-6 mt-20">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold">Driver Dashboard</h2>
-            
-            {/* Online/Offline Toggle Button */}
             <button
               onClick={toggleStatus}
-              className={`px-6 py-2 rounded-full font-semibold flex items-center gap-2 transition-all duration-300 ${
-                isOnline 
-                  ? 'bg-green-500 hover:bg-green-600 text-white' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              className={`px-6 py-2 rounded-full font-semibold ${
+                isOnline
+                  ? "bg-green-500 text-white hover:bg-green-600"
+                  : "bg-red-500 text-white hover:bg-red-600"
               }`}
             >
-              <span className={`w-3 h-3 rounded-full ${isOnline ? 'bg-white' : 'bg-gray-500'}`}></span>
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? "🟢 Online" : "🔴 Offline"}
             </button>
           </div>
-          
-          {/* Status Banner */}
+
           {!isOnline && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
               <div className="flex items-center">
@@ -177,116 +327,50 @@ const DriverDashboard = () => {
             </div>
           )}
           
-          {/* Map Component with current location */}
+          {/* Map Component with current location and owner's location if available */}
           <MapComponent 
-            userLocation={currentLocation ? [currentLocation.longitude, currentLocation.latitude] : undefined}
+            userLocation={currentLocation ? [currentLocation.longitude, currentLocation.latitude] : [74.7973, 34.0837]}
+            driverLocation={ownerLocation}
             isDriver={true}
+            driverId={activeBooking?.ownerId}
+            drivers={[]}
+            onDriverSelect={() => {}}
           />
 
           {/* Earnings Section */}
           <h3 className="text-2xl font-semibold mt-8">Earnings</h3>
-          <p className="text-lg mt-2">💰 Total Earnings: ₹25,000</p>
-          <p className="text-lg">✅ Completed Rides: 50</p>
+          <p className="text-lg mt-2">💰 Total Earnings: ₹{earnings.total}</p>
+          <p className="text-lg">✅ Completed Rides: {earnings.completedRides}</p>
 
           {/* Driver Profile */}
-          <h3 className="text-2xl font-semibold mt-8">Profile</h3>
-          <div className="border p-4 shadow-md">
-            <p>👤 Name: John Doe</p>
-            <p>🚗 Experience: 5 Years</p>
-            <p>🆔 License: DL-123456789</p>
-          </div>
+          {/* <h3 className="text-2xl font-semibold mt-8">Profile</h3>
+          {driverProfile ? (
+            <div className="border p-4 shadow-md">
+              <p>👤 Name: {driverProfile.name}</p>
+              <p>📱 Mobile: {driverProfile.mobile}</p>
+              <p>🚗 Experience: {driverProfile.experience} Years</p>
+              <p>🆔 License: {driverProfile.licenseNumber}</p>
+              <p>📍 Address: {driverProfile.address}</p>
+              {driverProfile.vehicleDetails && (
+                <>
+                  <p>🚘 Vehicle: {driverProfile.vehicleDetails.make} {driverProfile.vehicleDetails.model}</p>
+                  <p>🔢 Vehicle Number: {driverProfile.vehicleDetails.number}</p>
+                </>
+              )}
+            </div> */}
+          {/* ) : (
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+            </div>
+          )} */}
         </div>
       </div>
       <Footer />
+      <ToastContainer />
     </div>
   );
 };
 
 export default DriverDashboard;
-
-// import { useEffect, useState } from "react";
-// import axios from "axios";
-// import Navbar from "./Navbar";
-// import MapComponent from "./MapComponent";
-// import ProfileDropdown from "./DriverProfileDropdown";
-
-// const DriverDashboard = () => {
-//   const [requests, setRequests] = useState([]);
-//   const driverId = localStorage.getItem("driverId"); // From login
-
-//   useEffect(() => {
-//     const fetchRequests = async () => {
-//       const res = await axios.get(`http://localhost:5000/api/ride-requests/driver/${driverId}`);
-//       setRequests(res.data);
-//     };
-//     fetchRequests();
-//   }, []);
-
-//   const updateRequestStatus = async (requestId, status) => {
-//     await axios.put(`http://localhost:5000/api/ride-requests/${requestId}/status`, { status });
-//     setRequests((prev) =>
-//       prev.map((r) => (r._id === requestId ? { ...r, status } : r))
-//     );
-//   };
-
-//   return (
-//     <div>
-//       <Navbar />
-//       <div className="relative">
-//         <div className="absolute top-6 right-6 z-50">
-//           <ProfileDropdown />
-//         </div>
-//         <div className="container mx-auto p-6 mt-20">
-//           <h2 className="text-3xl font-bold mb-4">Driver Dashboard</h2>
-//           <MapComponent />
-//           <h3 className="text-2xl font-semibold">New Ride Requests</h3>
-          
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-//             {requests.map((req) => (
-//               <div key={req._id} className="border p-4 shadow-md">
-//                 <h4 className="text-xl font-bold">{req?.ownerId?.name}</h4>
-//                 <p>📍 Location: {req.location?.coordinates?.join(", ")}</p>
-//                 <p>Status: {req.status}</p>
-//                 <div className="mt-3">
-//                   <button
-//                     className="bg-green-500 text-white px-4 py-2 rounded mr-2"
-//                     onClick={() => updateRequestStatus(req._id, "accepted")}
-//                   >
-//                     Accept
-//                   </button>
-//                   <button
-//                     className="bg-red-500 text-white px-4 py-2 rounded"
-//                     onClick={() => updateRequestStatus(req._id, "rejected")}
-//                   >
-//                     Reject
-//                   </button>
-//                 </div>
-//               </div>
-//             ))}
-//           </div>
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-//              {[1, 2, 3].map((ride) => (
-//                <div key={ride} className="border p-4 shadow-md">
-//                  <h4 className="text-xl font-bold">Ride {ride}</h4>
-//                  <p>📍 Pickup: XYZ Location</p>
-//                  <p>💰 Fare: ₹300</p>
-//                  <div className="mt-3">
-//                    <button className="bg-green-500 text-white px-4 py-2 rounded mr-2">
-//                      Accept
-//                    </button>
-//                    <button className="bg-red-500 text-white px-4 py-2 rounded">
-//                      Reject
-//                    </button>
-//                  </div>
-//               </div>
-//             ))}
-//         </div>
-//         </div>
-//       </div>
-      //  {/* ✅ Footer at the bottom */}
-      //  <Footer />
-//     </div>
-//   );
-// };
-
-// export default DriverDashboard;
