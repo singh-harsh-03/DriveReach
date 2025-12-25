@@ -1,6 +1,7 @@
 const express = require('express');
 const Driver = require('../models/Driver');
 const router = express.Router();
+const auth = require('../middleware/auth');
 
 // Create Driver
 router.post('/', async (req, res) => {
@@ -48,6 +49,41 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+//put req
+router.put('/:id/location', async (req, res) => {
+  try {
+    const { location } = req.body;
+
+    // Validate GeoJSON
+    if (
+      !location ||
+      location.type !== 'Point' ||
+      !Array.isArray(location.coordinates) ||
+      location.coordinates.length !== 2 ||
+      typeof location.coordinates[0] !== 'number' ||
+      typeof location.coordinates[1] !== 'number'
+    ) {
+      return res.status(400).json({ message: 'Invalid location format. Expected GeoJSON Point with coordinates [longitude, latitude].' });
+    }
+
+    const driver = await Driver.findByIdAndUpdate(
+      req.params.id,
+      { location },
+      { new: true, runValidators: true }
+    );
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    res.json({ message: 'Location updated successfully', driver });
+  } catch (error) {
+    console.error('Error updating location:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 // Delete Driver
 router.delete('/:id', async (req, res) => {
   try {
@@ -56,6 +92,83 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Driver deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete driver' });
+  }
+});
+
+// Get all available drivers
+router.get('/available', auth, async (req, res) => {
+  try {
+    const drivers = await Driver.find({ isAvailable: true })
+      .select('name rating experience location'); // Only send necessary fields
+    res.json(drivers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get nearby drivers within 5km radius
+router.get('/nearby/:latitude/:longitude', auth, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.params;
+    
+    // Convert latitude and longitude to numbers
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
+    // Find drivers within 5km radius
+    // 5km = 5000m = 5/6371 radians (Earth's radius ≈ 6371km)
+    const drivers = await Driver.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lon, lat] // MongoDB uses [longitude, latitude] order
+          },
+          $maxDistance: 5000 // 5km in meters
+        }
+      }
+    }).select('name location experience');
+
+    res.json(drivers);
+  } catch (error) {
+    console.error('Error finding nearby drivers:', error);
+    res.status(500).json({ error: 'Failed to fetch nearby drivers' });
+  }
+});
+
+// Update driver status (online/offline)
+router.put('/:id/status', auth, async (req, res) => {
+  try {
+    const { currentStatus } = req.body;
+    const driverId = req.params.id;
+
+    // Verify the driver exists
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    // Update the status
+    driver.currentStatus = currentStatus;
+    await driver.save();
+
+    res.json({ 
+      success: true, 
+      message: `Driver status updated to ${currentStatus}`,
+      driver 
+    });
+  } catch (error) {
+    console.error('Error updating driver status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating driver status',
+      error: error.message 
+    });
   }
 });
 

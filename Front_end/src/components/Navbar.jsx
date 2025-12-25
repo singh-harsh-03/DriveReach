@@ -11,8 +11,14 @@
 // export default Navbar;
 
 import { Link } from "react-router-dom";
+import Notifications from "./Notifications";
 
 const Navbar = () => {
+  // Check if the current user is a driver
+  const isDriver = localStorage.getItem("user") 
+    ? JSON.parse(localStorage.getItem("user")).role === "driver"
+    : false;
+
   return (
     <nav className="bg-white shadow-md py-4 px-6 flex justify-between items-center">
       <Link
