@@ -9,8 +9,6 @@ DriveReach is a full-stack ride-hailing web application that connects car owners
 - [Architecture & Tech Stack](#architecture--tech-stack)
 - [Getting Started (Development)](#getting-started-development)
 - [Running the Project](#running-the-project)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Overview
 
@@ -78,19 +76,3 @@ npm run dev
 ```
 
 Open the frontend in your browser (usually http://localhost:5173 or the URL shown by Vite).
-
-## Contributing
-
-1. Fork the repository and create a branch for your work: `git checkout -b feature/name`
-2. Make commits with clear messages.
-3. Push your branch and open a Pull Request against `main`.
-
-Please run tests (if added) and ensure linting passes before creating a PR.
-
-## License
-
-This project is provided under the MIT License. See the `LICENSE` file for details.
-
----
-
-If you'd like, I can also add a minimal `CONTRIBUTING.md`, a license file, or update the `package.json` scripts so `npm run start` and `npm run dev` work consistently across subprojects. Tell me which you'd prefer next.
